@@ -9,15 +9,15 @@
 # ======================================================================================================================
 #
 # Low-level CANN custom-op build script for vllm-plugin-FL framework operators.
-# This is the equivalent of vllm-ascend/csrc/build.sh, but adapted to the
+# This is the equivalent of vllm-ascend/csrc/build.sh, adapted to the
 # vllm-plugin-FL directory layout where the CANN CMakeLists.txt lives under
-# csrc/ascend/cann/ instead of csrc/.
+# csrc/ascend/.
 
 set -e
 
 CURRENT_DIR=$(dirname $(readlink -f ${BASH_SOURCE[0]}))
-BUILD_DIR=${CURRENT_DIR}/cann/build
-OUTPUT_DIR=${CURRENT_DIR}/cann/output
+BUILD_DIR=${CURRENT_DIR}/build
+OUTPUT_DIR=${CURRENT_DIR}/output
 USER_ID=$(id -u)
 PARENT_JOB="false"
 CHECK_COMPATIBLE="true"
@@ -31,22 +31,12 @@ else
     DEFAULT_INSTALL_DIR="/usr/local/Ascend/latest"
 fi
 
-CUSTOM_OPTION="-DBUILD_OPEN_PROJECT=ON"
+ENABLE_BUILD_PKG="OFF"
+
+CUSTOM_OPTION="-DBUILD_OPEN_PROJECT=ON -DBUILD_TYPE=Release -DENABLE_BUILD_PKG=${ENABLE_BUILD_PKG}"
 
 function help_info() {
-    echo "Usage: $0 [options]"
-    echo "Options:"
-    echo
-    echo "-h|--help            Displays help message."
-    echo
-    echo "-n|--op-name         Specifies the compiled operator. If there are multiple values, separate them with semicolons and use quotation marks. The default is all."
-    echo "                     For example: -n \"flash_attention_score\" or -n \"flash_attention_score;flash_attention_score_grad\""
-    echo
-    echo "-c|--compute-unit    Specifies the chip type. If there are multiple values, separate them with semicolons and use quotation marks. The default is ascend910b."
-    echo "                     For example: -c \"ascend910b\" or -c \"ascend910b;ascend310p\""
-    echo
-    echo "--verbose            Displays more compilation information."
-    echo
+	echo "Usage: $0 [options]"
 }
 
 function log() {
@@ -81,7 +71,7 @@ function cmake_config()
 {
     local extra_option="$1"
     log "Info: cmake config ${CUSTOM_OPTION} ${extra_option} ."
-    cmake -S ${CURRENT_DIR}/cann -B ${BUILD_DIR} ${CUSTOM_OPTION} ${extra_option}
+    cmake -S ${CURRENT_DIR} -B ${BUILD_DIR} ${CUSTOM_OPTION} ${extra_option}
 }
 
 function build()
@@ -137,6 +127,26 @@ while [[ $# -gt 0 ]]; do
         ascend_compute_unit="$2"
         shift 2
         ;;
+    --pkg)
+        ENABLE_BUILD_PKG="ON"
+        shift
+        ;;
+    --ops)
+        ascend_op_name="$2"
+        shift 2
+        ;;
+    --soc)
+        ascend_compute_unit="$2"
+        shift 2
+        ;;
+    --ops=*)
+        ascend_op_name="${1#*=}"
+        shift
+        ;;
+    --soc=*)
+        ascend_compute_unit="${1#*=}"
+        shift
+        ;;
     --verbose)
         VERBOSE="true"
         shift
@@ -174,7 +184,7 @@ if [ "${PARENT_JOB}" == "false" ];then
     JOB_NUM="-j${CPU_NUM}"
 fi
 
-CUSTOM_OPTION="${CUSTOM_OPTION} -DCUSTOM_ASCEND_CANN_PACKAGE_PATH=${ASCEND_CANN_PACKAGE_PATH} -DCHECK_COMPATIBLE=${CHECK_COMPATIBLE}"
+CUSTOM_OPTION="${CUSTOM_OPTION} -DCUSTOM_ASCEND_CANN_PACKAGE_PATH=${ASCEND_CANN_PACKAGE_PATH} -DCHECK_COMPATIBLE=${CHECK_COMPATIBLE} -DCANN_3RD_LIB_PATH=${CURRENT_DIR}/third_party"
 
 set_env
 clean
