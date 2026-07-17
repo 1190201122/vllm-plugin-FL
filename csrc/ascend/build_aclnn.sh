@@ -28,7 +28,7 @@ elif [[ "$SOC_VERSION" =~ ^ascend910b ]]; then
     ABSOLUTE_CATLASS_PATH=$(cd "${CATLASS_PATH}" && pwd)
     export CPATH=${ABSOLUTE_CATLASS_PATH}:${CPATH}
 
-    CUSTOM_OPS="moe_grouped_matmul;grouped_matmul_swiglu_quant_weight_nz_tensor_list;lightning_indexer_vllm;sparse_flash_attention;matmul_allreduce_add_rmsnorm;moe_init_routing_custom;moe_gating_top_k;add_rms_norm_bias;apply_top_k_top_p_custom;transpose_kv_cache_by_block;copy_and_expand_eagle_inputs;causal_conv1d;lightning_indexer_quant;"
+    CUSTOM_OPS="moe_grouped_matmul;grouped_matmul_swiglu_quant;grouped_matmul_swiglu_quant_v2;grouped_matmul_swiglu_quant_weight_nz_tensor_list;lightning_indexer;lightning_indexer_quant;sparse_flash_attention;kv_quant_sparse_flash_attention;sparse_attn_sharedkv;vllm_quant_lightning_indexer;compressor;compressor_metadata;fused_gdn_gating;inplace_partial_rotary_mul;recurrent_gated_delta_rule;rms_norm_dynamic_quant;store_kv_block;reshape_and_cache_bnsd;ngram_spec_decode;matmul_allreduce_add_rmsnorm;moe_init_routing_custom;moe_gating_top_k;moe_gating_top_k_hash;add_rms_norm_bias;apply_top_k_top_p_custom;causal_conv1d;chunk_fwd_o;chunk_gated_delta_rule_fwd_h;copy_and_expand_eagle_inputs;dequant_swiglu_quant;hamming_dist_top_k;hc_post;hc_pre;hc_pre_inv_rms;hc_pre_sinkhorn;scatter_nd_update_v2;transpose_kv_cache_by_block;"
     SOC_ARG="ascend910b"
 elif [[ "$SOC_VERSION" =~ ^ascend910_93 ]]; then
     # ASCEND910C (A3) series
@@ -78,16 +78,19 @@ fi
 
 # Build custom ops
 cd ${ROOT_DIR}/csrc/ascend
-rm -rf cann/build cann/output
+rm -rf build output
 
 echo "building custom ops $CUSTOM_OPS for $SOC_VERSION"
-bash build.sh -n "$CUSTOM_OPS" -c "$SOC_ARG"
+bash build.sh --pkg --ops="$CUSTOM_OPS" --soc="$SOC_ARG"
 
-# Install custom ops to vllm_fl/_cann_ops_custom
+# Install custom ops to vllm_fl/_cann_ops_custom (isolated from system CANN).
 INSTALL_DIR=${ROOT_DIR}/vllm_fl/_cann_ops_custom
-RUN_PACKAGE=$(ls cann/build/CANN-custom_ops-*.run 2> /dev/null | head -n1)
+RUN_PACKAGE=$(ls build_out/cann-ops-transformer*.run 2> /dev/null | head -n1)
 if [[ -z "${RUN_PACKAGE}" ]]; then
-    echo "Error: no .run package found under cann/build/"
+    RUN_PACKAGE=$(ls build/cann-ops-transformer*.run 2> /dev/null | head -n1)
+fi
+if [[ -z "${RUN_PACKAGE}" ]]; then
+    echo "Error: no .run package found under build/ or build_out/"
     exit 1
 fi
 
