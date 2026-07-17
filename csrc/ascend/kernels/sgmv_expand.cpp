@@ -361,7 +361,7 @@ SGMV_EXPAND_TYPE_DECLARE(half)
     SGMV_EXPAND_TYPE_DECLARE(bfloat16_t)
 #endif
 
-namespace vllm_ascend {
+namespace vllm_fl {
 extern void sgmv_expand_impl(AscendType type, void* stream, void* x, void* weight, 
                              void* loraIndices, uint32_t loraIndicesSize,
                              void* seqLen, uint32_t seqLenSize,
@@ -386,4 +386,4 @@ extern void sgmv_expand_impl(AscendType type, void* stream, void* x, void* weigh
     }
 }
 
-} // namespace vllm_ascend
+} // namespace vllm_fl

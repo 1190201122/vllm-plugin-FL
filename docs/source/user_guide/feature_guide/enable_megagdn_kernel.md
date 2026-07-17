@@ -132,7 +132,7 @@ matching `(H, Hg, D, C=128)` configurations.
 ## Git Submodule: pto-isa
 
 The megakernel depends on the `pto-isa` header library, tracked as a git
-submodule at `csrc/third_party/pto-isa`.  Initialize after cloning:
+submodule at `csrc/ascend/third_party/pto-isa`.  Initialize after cloning:
 
 ```bash
 git clone https://github.com/vllm-project/vllm-ascend.git

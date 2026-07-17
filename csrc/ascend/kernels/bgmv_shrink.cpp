@@ -230,7 +230,7 @@ BGMV_SHRINK_TYPE_DECLARE(half)
     BGMV_SHRINK_TYPE_DECLARE(bfloat16_t)
 #endif
 
-namespace vllm_ascend {
+namespace vllm_fl {
 extern void bgmv_shrink_impl(AscendType type, void* stream, void* x, void* weight, void* indices, uint32_t indicesSize,
                              void* y, uint32_t batchSize, uint32_t numTokensPerCore, uint32_t inputHiddenDim,
                              uint32_t maxLoRARank, float scale)
@@ -249,4 +249,4 @@ extern void bgmv_shrink_impl(AscendType type, void* stream, void* x, void* weigh
     }
 }
 
-} // namespace vllm_ascend
+} // namespace vllm_fl

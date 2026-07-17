@@ -366,7 +366,7 @@ def enable_custom_op() -> bool:
         _CUSTOM_OP_ENABLED = False
         return _CUSTOM_OP_ENABLED
 
-    vendor_dir = custom_ops_root / "vendors" / "vllm-fl"
+    vendor_dir = custom_ops_root / "vendors" / "custom_transformer"
     set_env_script = vendor_dir / "bin" / "set_env.bash"
 
     if set_env_script.is_file():

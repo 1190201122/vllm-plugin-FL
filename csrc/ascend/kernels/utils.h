@@ -16,7 +16,7 @@
 
 #pragma once
 #include "kernel_type.h"
-namespace vllm_ascend {
+namespace vllm_fl {
 
 template <typename scalar_t> struct AccType;
 
@@ -48,4 +48,4 @@ __aicore__ inline void local_mem_copy(AscendC::LocalTensor<scalar_t> dst, Ascend
         AscendC::Copy(dst, src, loadSize, loopCnt, {1, 1, 8, 8});
     AscendC::Copy(dst[loopCnt * loadSize], src[loopCnt * loadSize], tailSize, 1, {1, 1, 8, 8});
 }
-} // namespace vllm_ascend
+} // namespace vllm_fl

@@ -32,11 +32,31 @@ else
 fi
 
 ENABLE_BUILD_PKG="OFF"
+ENABLE_BUILT_IN="OFF"
 
-CUSTOM_OPTION="-DBUILD_OPEN_PROJECT=ON -DBUILD_TYPE=Release -DENABLE_BUILD_PKG=${ENABLE_BUILD_PKG}"
+BASE_CUSTOM_OPTION="-DBUILD_OPEN_PROJECT=ON -DBUILD_TYPE=Release -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=ON"
+CUSTOM_OPTION="${BASE_CUSTOM_OPTION}"
 
 function help_info() {
-	echo "Usage: $0 [options]"
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo
+    echo "-h|--help            Displays help message."
+    echo
+    echo "-n|--op-name         Specifies the compiled operator. If there are multiple values, separate them with semicolons and use quotation marks. The default is all."
+    echo "                     For example: -n \"flash_attention_score\" or -n \"flash_attention_score;flash_attention_score_grad\""
+    echo
+    echo "-c|--compute-unit    Specifies the chip type. If there are multiple values, separate them with semicolons and use quotation marks. The default is ascend910b."
+    echo "                     For example: -c \"ascend910b\" or -c \"ascend910b;ascend310p\""
+    echo
+    echo "--pkg                Build a self-extracting .run package."
+    echo
+    echo "--ops=OPS            Same as -n (upstream style)."
+    echo
+    echo "--soc=SOC            Same as -c (upstream style)."
+    echo
+    echo "--verbose            Displays more compilation information."
+    echo
 }
 
 function log() {
@@ -129,6 +149,7 @@ while [[ $# -gt 0 ]]; do
         ;;
     --pkg)
         ENABLE_BUILD_PKG="ON"
+        ENABLE_BUILT_IN="OFF"
         shift
         ;;
     --ops)
@@ -157,6 +178,8 @@ while [[ $# -gt 0 ]]; do
         ;;
     esac
 done
+
+CUSTOM_OPTION="${BASE_CUSTOM_OPTION} -DENABLE_BUILD_PKG=${ENABLE_BUILD_PKG} -DENABLE_BUILT_IN=${ENABLE_BUILT_IN}"
 
 if [ -n "${ascend_compute_unit}" ];then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DASCEND_COMPUTE_UNIT=${ascend_compute_unit}"
@@ -199,4 +222,4 @@ cmake_config
 build_package
 
 log "Info: CANN framework operator package built at ${BUILD_DIR}."
-log "Info: Install with: bash ${BUILD_DIR}/CANN-custom_ops-*.run --install-path=\$YOUR_INSTALL_DIR"
+log "Info: Install with: bash ${BUILD_DIR}/cann-ops-transformer-*.run --install-path=\$YOUR_INSTALL_DIR"

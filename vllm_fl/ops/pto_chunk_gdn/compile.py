@@ -17,12 +17,12 @@
 """Bisheng JIT compilation for the PTO GDN megakernel on Ascend NPU.
 
 The megakernel is compiled on first use and cached under
-``vllm_ascend/ops/pto_chunk_gdn/kernels/compiled_lib/``.
+``vllm_fl/ops/pto_chunk_gdn/kernels/compiled_lib/``.
 Re-compilation is triggered when the C++ source mtime changes.
 
 Environment variables:
     PTO_LIB_PATH            Path to pto-isa header directory (contains ``include/``).
-                            Auto-detected from ``csrc/third_party/pto-isa`` in the
+                            Auto-detected from ``csrc/ascend/third_party/pto-isa`` in the
                             package source tree, then ``/sources/pto-isa`` fallback.
     ASCEND_TOOLKIT_HOME     Ascend toolkit root (required).
     GDN_NPU_DEVICE          NPU device for ``cube_core_num`` query (default ``npu:0``).
@@ -42,12 +42,12 @@ import torch
 # Paths — resolved relative to this file's installed location
 # ---------------------------------------------------------------------------
 _THIS_DIR = Path(__file__).resolve().parent
-_VLLM_ASCEND_DIR = _THIS_DIR.parent.parent           # vllm_ascend/
-_PACKAGE_ROOT = _VLLM_ASCEND_DIR.parent              # site-packages root
+_VLLM_FL_DIR = _THIS_DIR.parent.parent           # vllm_fl/
+_PACKAGE_ROOT = _VLLM_FL_DIR.parent              # site-packages root
 
-# C++ sources live in csrc/pto_chunk_gdn/ inside the source tree.
+# C++ sources live in csrc/ascend/pto_chunk_gdn/ inside the source tree.
 # In editable installs (pip install -e .) _PACKAGE_ROOT == repo root.
-_CSRC_PTO = _PACKAGE_ROOT / "csrc" / "pto_chunk_gdn"
+_CSRC_PTO = _PACKAGE_ROOT / "csrc" / "ascend" / "pto_chunk_gdn"
 if not _CSRC_PTO.is_dir():
     _CSRC_PTO = _THIS_DIR / "csrc"
 
@@ -72,7 +72,7 @@ if not ASCEND_TOOLKIT_HOME:
 def _resolve_pto_lib_path() -> str:
     if "PTO_LIB_PATH" in os.environ:
         return os.environ["PTO_LIB_PATH"]
-    submodule = _PACKAGE_ROOT / "csrc" / "third_party" / "pto-isa"
+    submodule = _PACKAGE_ROOT / "csrc" / "ascend" / "third_party" / "pto-isa"
     if (submodule / "include").is_dir():
         os.environ["PTO_LIB_PATH"] = str(submodule)
         return str(submodule)

@@ -16,7 +16,7 @@
 
 #pragma once
 
-namespace vllm_ascend {
+namespace vllm_fl {
 enum struct AscendType {
     FP16 = 0,
     BF16 = 1,

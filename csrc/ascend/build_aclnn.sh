@@ -78,16 +78,16 @@ fi
 
 # Build custom ops
 cd ${ROOT_DIR}/csrc/ascend
-rm -rf build output
+rm -rf build output build_out
 
 echo "building custom ops $CUSTOM_OPS for $SOC_VERSION"
 bash build.sh --pkg --ops="$CUSTOM_OPS" --soc="$SOC_ARG"
 
 # Install custom ops to vllm_fl/_cann_ops_custom (isolated from system CANN).
 INSTALL_DIR=${ROOT_DIR}/vllm_fl/_cann_ops_custom
-RUN_PACKAGE=$(ls build_out/cann-ops-transformer*.run 2> /dev/null | head -n1)
+RUN_PACKAGE=$(ls build/cann-ops-transformer*.run 2> /dev/null | head -n1)
 if [[ -z "${RUN_PACKAGE}" ]]; then
-    RUN_PACKAGE=$(ls build/cann-ops-transformer*.run 2> /dev/null | head -n1)
+    RUN_PACKAGE=$(ls build_out/cann-ops-transformer*.run 2> /dev/null | head -n1)
 fi
 if [[ -z "${RUN_PACKAGE}" ]]; then
     echo "Error: no .run package found under build/ or build_out/"

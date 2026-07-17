@@ -73,7 +73,7 @@ COPY . /workspace/vllm-ascend/
 # Initialise the pto-isa submodule that the megakernel C++ code depends on.
 # If the COPY above already includes a populated submodule this is a no-op.
 RUN cd /workspace/vllm-ascend && \
-    git submodule update --init --recursive csrc/third_party/pto-isa
+    git submodule update --init --recursive csrc/ascend/third_party/pto-isa
 
 ENV SOC_VERSION=${SOC_VERSION} \
     TASK_QUEUE_ENABLE=1 \
