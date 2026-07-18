@@ -11,12 +11,13 @@
 - **源码位置**：`csrc/ascend/<category>/<op_name>/`
   - 例如 `csrc/ascend/moe/causal_conv1d/`、`csrc/ascend/attention/fused_gdn_gating/`。
 - **构建工具链**：CANN `op_host` / `op_kernel` / `aclnn` 工具链。
-- **产物**：自解压 `.run` 算子包。
+- **产物**：自解压 `.run` 算子包，例如 `csrc/ascend/build/cann-ops-transformer-custom_linux-aarch64.run`。
 - **安装位置**：默认隔离安装到项目目录 `vllm_fl/_cann_ops_custom/vendors/custom_transformer/`，不污染系统 CANN。
+  - 该目录是构建产物，**不应提交到版本控制**。
 - **运行时加载**：
   - C++ torch extension `vllm_fl._C_ascend` 注册 `torch.ops._C_ascend.*` schema；
-  - 算子实现通过 `libopapi.so` + `libcust_opapi.so` 被 CANN 运行时解析；
-  - 必须 `source vllm_fl/_cann_ops_custom/vendors/custom_transformer/bin/set_env.bash` 设置 `ASCEND_CUSTOM_OPP_PATH` 和 `LD_LIBRARY_PATH`。
+  - `vllm_fl.utils.enable_custom_op()` 会自动发现已安装的 `_cann_ops_custom` 包，设置 `ASCEND_CUSTOM_OPP_PATH` 和 `LD_LIBRARY_PATH`；
+  - 即使 `set_env.bash` 中写入了安装时的绝对路径，运行时也以 `vllm_fl` 包的实际位置为准，因此安装目录可以被移动。
 
 ### 1.2 PTO GDN 预编译算子（Bisheng 路径）
 
@@ -29,25 +30,38 @@
   - JIT 模式：首次调用时由 `vllm_fl/ops/pto_chunk_gdn/compile.py` 自动编译并缓存到同一目录。
 - **运行时加载**：Python 代码通过 `ctypes.CDLL` / `torch.ops.load_library` 直接加载 `.so`，不经过 CANN `opp/vendors` 路径。
 
-## 2. 完整编译、安装与接入流程
-
-### 2.1 环境准备
+## 2. 环境准备
 
 ```bash
 # 1. 激活 CANN 环境
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 
-# 2. 确认环境变量
+# 2. 初始化 catlass 和 pto-isa 源码子模块（这两个第三方库不随主仓库一起拉取）
+git submodule update --init --recursive csrc/ascend/third_party/catlass
+git submodule update --init --recursive csrc/ascend/third_party/pto-isa
+
+# 3. （可选）固定子模块版本，确保与上游来源一致
+#    catlass 固定到 vllm-ascend 使用的 commit
+#    pto-isa 固定到 PR #8872 使用的 commit（如有需要）
+cd csrc/ascend/third_party/catlass
+git checkout 41bf90da655bba3c66d0acd7e00abe33960ecfd6
+cd ../../..
+
+cd csrc/ascend/third_party/pto-isa
+# 如需固定版本，替换为 PR #8872 对应的 commit
+# git checkout <pto-isa-commit-hash>
+cd ../../..
+
+# 4. 确认环境变量（根据实际安装路径调整）
 export ASCEND_HOME_PATH=/usr/local/Ascend/cann-9.0.0
-export SOC_VERSION=ascend910b1   # 根据实际芯片调整
+export SOC_VERSION=ascend910b   # 根据实际芯片调整
 ```
 
-### 2.2 编译并安装 torch extension `vllm_fl._C_ascend`
+## 3. 编译并安装 torch extension `vllm_fl._C_ascend`
 
 该 extension 把 C++ 算子实现注册到 `torch.ops._C_ascend`，同时包含 `camem_allocator` 等基础设施。
 
 ```bash
-cd /workspace/vllm-plugin-FL
 VLLM_VENDOR=ascend python setup.py build_ext --inplace
 ```
 
@@ -60,43 +74,48 @@ vllm_fl/libvllm_fl_kernels.so
 
 测试脚本中通过 `import vllm_fl._C_ascend` 加载 extension，随后即可调用 `torch.ops._C_ascend.*`。
 
-### 2.3 编译并部署 CANN framework 算子包
+## 4. 安装 CANN framework 算子包
+
+如果已经存在构建好的 `.run` 包（例如 `csrc/ascend/build/cann-ops-transformer-custom_linux-aarch64.run`），可以直接安装：
 
 ```bash
-cd /workspace/vllm-plugin-FL/csrc/ascend
-
-# 编译并打包所有 910B 支持的 framework 算子
-bash build_aclnn.sh ascend910b
+bash csrc/ascend/build/cann-ops-transformer-custom_linux-aarch64.run \
+    --install-path="$(pwd)/vllm_fl/_cann_ops_custom"
 ```
 
-`build_aclnn.sh` 内部会：
-
-1. 调用 `bash build.sh --pkg --ops="..." --soc=ascend910b`；
-2. 在 `csrc/ascend/build/` 下生成 `cann-ops-transformer-custom_linux-aarch64.run`；
-3. 自动执行 `.run --install-path=/workspace/vllm-plugin-FL/vllm_fl/_cann_ops_custom`；
-4. 最终目录结构：
+`.run` 包会把算子安装到指定的 `--install-path` 下，生成：
 
 ```text
 vllm_fl/_cann_ops_custom/vendors/custom_transformer/
-├── bin/set_env.bash          # 设置 ASCEND_CUSTOM_OPP_PATH / LD_LIBRARY_PATH
-├── op_api/include/aclnnop/   # aclnn 头文件
+├── bin/set_env.bash          # 安装时生成的环境脚本
+├── op_api/include/aclnn/     # aclnn 头文件
 ├── op_api/lib/libcust_opapi.so
 ├── op_proto/
 └── op_impl/
 ```
 
-每次运行测试前必须先 source 环境脚本：
+> **注意**：`set_env.bash` 会记录安装时的绝对路径。测试脚本不依赖该脚本，而是调用 `vllm_fl.utils.enable_custom_op()` 根据 `vllm_fl` 包的实际位置自动设置环境变量，因此安装目录可以被移动。
+
+如果需要从头编译 `.run` 包，执行：
 
 ```bash
-source /workspace/vllm-plugin-FL/vllm_fl/_cann_ops_custom/vendors/custom_transformer/bin/set_env.bash
+bash csrc/ascend/build_aclnn.sh <soc_version>
+# 例如：bash csrc/ascend/build_aclnn.sh ascend910b
 ```
 
-### 2.4 PTO GDN 算子的两种使用方式
+构建完成后会生成 `csrc/ascend/build/cann-ops-transformer-custom_linux-aarch64.run` 并自动安装到 `vllm_fl/_cann_ops_custom/`。
 
-#### 方式 A：预编译（推荐生产环境）
+如果希望清理构建过程中下载的第三方库（`abseil-cpp`、`ascend_protobuf`、`json`、`pkg` 缓存），保留源码子模块 `catlass` 和 `pto-isa`，可以加上 `--clean-third-party`：
 
 ```bash
-cd /workspace/vllm-plugin-FL
+bash csrc/ascend/build_aclnn.sh ascend910b --clean-third-party
+```
+
+## 5. PTO GDN 算子的两种使用方式
+
+### 方式 A：预编译（推荐生产环境）
+
+```bash
 VLLM_VENDOR=ascend BUILD_PTO_CHUNK_GDN=ON python setup.py build_ext --inplace
 
 # 显式编译 PTO megakernel
@@ -104,10 +123,10 @@ cmake --build build/temp.linux-aarch64-cpython-311 \
       --target pto_chunk_gdn_kernels -j$(nproc)
 ```
 
-产物会安装到：
+产物会安装到当前 Python 环境 site-packages 下的：
 
 ```text
-/usr/local/python3.11.14/lib/python3.11/site-packages/vllm_fl/ops/pto_chunk_gdn/kernels/compiled_lib/
+vllm_fl/ops/pto_chunk_gdn/kernels/compiled_lib/
 ├── mega_kernel_H16_Hg8_D128_C128.so
 ├── mega_kernel_H16_Hg16_D128_C128.so
 └── ...
@@ -115,7 +134,7 @@ cmake --build build/temp.linux-aarch64-cpython-311 \
 
 > 在 editable install（`pip install -e .`）下，`_PACKAGE_ROOT` 等于仓库根目录，因此也会写到仓库内的 `vllm_fl/ops/pto_chunk_gdn/kernels/compiled_lib/`。
 
-#### 方式 B：JIT 首次编译（开发调试用）
+### 方式 B：JIT 首次编译（开发调试用）
 
 不预编译，直接运行 `tests/custom_ops_tests/test_pto_chunk_gdn.py`。`vllm_fl/ops/pto_chunk_gdn/compile.py` 会：
 
@@ -124,7 +143,7 @@ cmake --build build/temp.linux-aarch64-cpython-311 \
 3. 缓存到 `vllm_fl/ops/pto_chunk_gdn/kernels/compiled_lib/`；
 4. 后续调用直接复用缓存。
 
-### 2.5 目录结构总览
+## 6. 目录结构总览
 
 ```text
 csrc/ascend/
@@ -134,6 +153,8 @@ csrc/ascend/
 ├── camem_allocator.cpp         # NPU 显存分配器
 ├── build.sh                    # CANN framework 算子构建脚本
 ├── build_aclnn.sh              # 一键打包 + 安装 .run
+├── build/                      # 构建产物（包含 .run 包）
+│   └── cann-ops-transformer-custom_linux-aarch64.run
 ├── <category>/<op_name>/       # CANN framework 算子源码
 │   └── op_host/op_kernel/...
 ├── pto_chunk_gdn/              # PTO GDN megakernel 源码
@@ -145,16 +166,11 @@ csrc/ascend/
     └── pto-isa/                # PTO 算子依赖
 ```
 
-## 3. 如何执行测试
+## 7. 如何执行测试
 
-所有测试脚本都需要先 source CANN 自定义算子环境（用于 framework 算子和 torch extension）：
+测试脚本会自动调用 `vllm_fl.utils.enable_custom_op()` 设置 CANN 自定义算子环境，**不需要手动 `source set_env.bash`**。
 
-```bash
-cd /workspace/vllm-plugin-FL
-source vllm_fl/_cann_ops_custom/vendors/custom_transformer/bin/set_env.bash
-```
-
-### 3.1 逐个运行
+### 7.1 逐个运行
 
 ```bash
 # CANN framework 算子
@@ -168,7 +184,7 @@ python tests/custom_ops_tests/test_chunk_gated_delta_rule_fwd_h.py
 python tests/custom_ops_tests/test_pto_chunk_gdn.py
 ```
 
-### 3.2 批量运行
+### 7.2 批量运行
 
 ```bash
 for f in tests/custom_ops_tests/test_*.py; do
@@ -177,16 +193,16 @@ for f in tests/custom_ops_tests/test_*.py; do
 done
 ```
 
-### 3.3 常见失败原因
+### 7.3 常见失败原因
 
 | 现象 | 原因 | 解决 |
 |---|---|---|
 | `AttributeError: '_OpNamespace' '_C_ascend' object has no attribute 'xxx'` | `vllm_fl._C_ascend` 未编译或算子未注册 | 重新执行 `VLLM_VENDOR=ascend python setup.py build_ext --inplace` |
-| `aclnnXxx ... not in libopapi.so` | 未 source 自定义算子环境 | `source vllm_fl/_cann_ops_custom/vendors/custom_transformer/bin/set_env.bash` |
+| `aclnnXxx ... not in libopapi.so` | `_cann_ops_custom` 未安装 | 执行 `bash csrc/ascend/build/cann-ops-transformer-custom_linux-aarch64.run --install-path="$(pwd)/vllm_fl/_cann_ops_custom"` |
 | `ImportError: dynamic module does not define module export function (PyInit__C_ascend)` | `camem_allocator.cpp` 里的 PyInit 函数名与 extension 名不匹配 | 检查 `csrc/ascend/camem_allocator.cpp` 是否为 `PyInit__C_ascend` |
 | PTO 测试提示找不到 `pto-isa` | 子模块未初始化或路径错误 | `git submodule update --init --recursive csrc/ascend/third_party/pto-isa` |
 
-## 4. 测试脚本说明
+## 8. 测试脚本说明
 
 | 测试脚本 | 对应算子 | 接入方式 |
 |---|---|---|

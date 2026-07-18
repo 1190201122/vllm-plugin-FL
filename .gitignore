@@ -214,5 +214,20 @@ csrc/output/
 # claude code skills
 .claude/skills/*
 
-# PTO chunk-GDN JIT-compiled kernels
-vllm_ascend/ops/pto_chunk_gdn/kernels/compiled_lib/*.so
+# vllm-plugin-FL generated artifacts
+vllm_plugin_fl.egg-info/
+/vllm_fl/_cann_ops_custom/*
+!/vllm_fl/_cann_ops_custom/.gitkeep
+vllm_fl/ops/pto_chunk_gdn/kernels/compiled_lib/*.so
+
+# CANN framework operator build directories
+csrc/ascend/build/
+csrc/ascend/build_out/
+
+# CANN framework operator downloaded third-party libraries.
+# Keep only the catlass and pto-isa source submodules.
+csrc/ascend/third_party/abseil-cpp/
+csrc/ascend/third_party/ascend_protobuf/
+csrc/ascend/third_party/json/
+csrc/ascend/third_party/makeself/
+csrc/ascend/third_party/pkg/

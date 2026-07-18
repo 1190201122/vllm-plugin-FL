@@ -58,7 +58,7 @@ KERNEL_INCLUDE: str = str(_CSRC_PTO / "include")
 _COMPILED_DIR = _THIS_DIR / "kernels" / "compiled_lib"
 COMPILED_DIR: str = str(_COMPILED_DIR)
 
-_DRIVER_INC = "/usr/local/Ascend/driver/kernel/inc"
+_DRIVER_INC = os.environ.get("ASCEND_DRIVER_PATH", "/usr/local/Ascend/driver/kernel/inc")
 
 ASCEND_TOOLKIT_HOME: str = (
     os.environ.get("ASCEND_TOOLKIT_HOME") or os.environ.get("ASCEND_HOME_PATH", "")
@@ -76,11 +76,12 @@ def _resolve_pto_lib_path() -> str:
     if (submodule / "include").is_dir():
         os.environ["PTO_LIB_PATH"] = str(submodule)
         return str(submodule)
-    fallback = "/sources/pto-isa"
-    if os.path.isdir(os.path.join(fallback, "include")):
-        os.environ["PTO_LIB_PATH"] = fallback
-        return fallback
-    return ASCEND_TOOLKIT_HOME
+    raise RuntimeError(
+        "PTO ISA headers not found. Please either:\n"
+        "  1. Initialize the submodule: "
+        "git submodule update --init --recursive csrc/ascend/third_party/pto-isa\n"
+        "  2. Set PTO_LIB_PATH to the pto-isa directory (contains include/)."
+    )
 
 
 PTO_LIB_PATH: str = _resolve_pto_lib_path()

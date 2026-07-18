@@ -9,7 +9,25 @@
 set -e
 
 ROOT_DIR=$(cd "$(dirname $(readlink -f ${BASH_SOURCE[0]}))/../../" && pwd)
-SOC_VERSION=${1:-ascend910b}
+SOC_VERSION="ascend910b"
+CLEAN_THIRD_PARTY=0
+
+# Parse arguments. The SOC_VERSION positional argument can appear anywhere;
+# --clean-third-party is the only supported flag.
+for arg in "$@"; do
+    case "$arg" in
+        --clean-third-party)
+            CLEAN_THIRD_PARTY=1
+            ;;
+        --*)
+            echo "Unknown option: $arg"
+            exit 1
+            ;;
+        *)
+            SOC_VERSION="$arg"
+            ;;
+    esac
+done
 
 if [[ "$SOC_VERSION" =~ ^ascend310 ]]; then
     echo "No custom aclnn ops for ASCEND310 series."
@@ -96,5 +114,19 @@ fi
 
 echo "installing ${RUN_PACKAGE} to ${INSTALL_DIR}"
 bash "${RUN_PACKAGE}" --install-path="${INSTALL_DIR}"
+
+# Clean downloaded third-party build artifacts only when explicitly requested.
+# catlass and pto-isa are source submodules and must be kept.
+clean_third_party_artifacts() {
+    local third_party_dir="${ROOT_DIR}/csrc/ascend/third_party"
+    echo "[build_aclnn] cleaning downloaded third-party build artifacts ..."
+    rm -rf "${third_party_dir}/abseil-cpp"
+    rm -rf "${third_party_dir}/ascend_protobuf"
+    rm -rf "${third_party_dir}/json"
+    rm -rf "${third_party_dir}/pkg"
+}
+if [[ "${CLEAN_THIRD_PARTY}" == "1" ]]; then
+    clean_third_party_artifacts
+fi
 
 echo "CANN framework operators built and installed for $SOC_VERSION."

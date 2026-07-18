@@ -181,7 +181,8 @@ def {}({}, kernel_name="{}"{}):
         bisheng_path = os.path.dirname(bisheng)
         tikcpp_path = os.path.realpath(os.path.join(bisheng_path, "..", "..", "tikcpp"))
     else:
-        tikcpp_path = os.path.realpath("/usr/local/Ascend/latest/compiler/tikcpp")
+        toolkit_path = os.environ.get('ASCEND_HOME_PATH', '/usr/local/Ascend/latest')
+        tikcpp_path = os.path.realpath(os.path.join(toolkit_path, "compiler", "tikcpp"))
     options.append("-I" + tikcpp_path)
     options.append("-I" + os.path.join(tikcpp_path, "..", "..", "include"))
     options.append("-I" + os.path.join(tikcpp_path, "tikcfw"))

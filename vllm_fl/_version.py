@@ -3,7 +3,7 @@
 from __future__ import annotations
 import re as _re
 
-__version__: str = "0.0.0+gdef4b5a5c.d20260717"
+__version__: str = "0.0.0+gc1e89734a.d20260718"
 version: str = __version__
 _node_date: str = "2026-07-17"
 

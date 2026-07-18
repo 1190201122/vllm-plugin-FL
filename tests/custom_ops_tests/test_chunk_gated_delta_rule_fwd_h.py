@@ -3,31 +3,22 @@
 #
 # Minimal connectivity test for the chunk_gated_delta_rule_fwd_h framework op.
 #
-# NOTE: this test requires the CANN custom op package to be discoverable at
-# runtime. Before running, source the generated environment script:
-#   source /workspace/vllm-plugin-FL/vllm_fl/_cann_ops_custom/vendors/custom_transformer/bin/set_env.bash
+# NOTE: this test automatically enables the CANN custom-op environment by
+# discovering the vllm_fl/_cann_ops_custom package installed next to vllm_fl.
+# No manual `source set_env.bash` is required.
 
-import os
 import sys
 
-CUSTOM_OPP_MARKER = "/workspace/vllm-plugin-FL/vllm_fl/_cann_ops_custom/vendors/custom_transformer"
+from vllm_fl.utils import enable_custom_op
 
-
-def _check_custom_op_env() -> None:
-    """Ensure LD_LIBRARY_PATH was set before Python started."""
-    ld_path = os.environ.get("LD_LIBRARY_PATH", "")
-    opp_path = os.environ.get("ASCEND_CUSTOM_OPP_PATH", "")
-    if CUSTOM_OPP_MARKER not in ld_path or CUSTOM_OPP_MARKER not in opp_path:
-        print(
-            "ERROR: CANN custom op environment is not set.\n"
-            "Please run the following command in your shell first, then re-run this test:\n"
-            f"  source {CUSTOM_OPP_MARKER}/bin/set_env.bash",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-
-_check_custom_op_env()
+if not enable_custom_op():
+    print(
+        "ERROR: vllm_fl/_cann_ops_custom is not installed.\n"
+        "Please build and install the CANN framework operators first, e.g.:\n"
+        "  bash csrc/ascend/build_aclnn.sh <soc_version>",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 import torch
 import torch_npu

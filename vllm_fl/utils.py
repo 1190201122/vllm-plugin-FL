@@ -354,6 +354,11 @@ def enable_custom_op() -> bool:
     LD_LIBRARY_PATH directly) so that the aclnn custom-op symbols can be
     discovered at runtime.
 
+    The absolute paths baked into set_env.bash during installation are not
+    trusted blindly, because the installed package may have been moved to a
+    different prefix.  We always override the two critical variables with
+    paths derived from the actual vllm_fl package location.
+
     Returns:
         True if custom-op environment was configured, False otherwise.
     """
@@ -381,13 +386,21 @@ def enable_custom_op() -> bool:
                 if "=" not in line:
                     continue
                 key, _, value = line.partition("=")
-                if key in ("ASCEND_CUSTOM_OPP_PATH", "LD_LIBRARY_PATH"):
+                # Preserve any extra environment variables exported by the
+                # script, but do NOT keep ASCEND_CUSTOM_OPP_PATH or
+                # LD_LIBRARY_PATH from set_env.bash: they contain absolute
+                # paths that become stale when the package is relocated.
+                if key and key not in (
+                    "ASCEND_CUSTOM_OPP_PATH",
+                    "LD_LIBRARY_PATH",
+                ):
                     os.environ[key] = value
         except subprocess.CalledProcessError:
             # Fall back to setting the two known variables directly.
-            _set_custom_op_env_paths(vendor_dir)
-    else:
-        _set_custom_op_env_paths(vendor_dir)
+            pass
+
+    # Always use paths derived from the actual installed location.
+    _set_custom_op_env_paths(vendor_dir)
 
     _CUSTOM_OP_ENABLED = True
     return _CUSTOM_OP_ENABLED

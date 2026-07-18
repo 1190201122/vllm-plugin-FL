@@ -13,8 +13,8 @@ import torch
 import torch_npu
 
 # Allow importing the in-tree vllm_fl without installation.
-ROOT = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(ROOT, "vllm-plugin-FL"))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.insert(0, ROOT)
 
 
 def main() -> int:
