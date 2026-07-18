@@ -3,9 +3,9 @@
 from __future__ import annotations
 import re as _re
 
-__version__: str = "0.0.0+gc1e89734a.d20260718"
+__version__: str = "0.0.0+gfddf2757c.d20260718"
 version: str = __version__
-_node_date: str = "2026-07-17"
+_node_date: str = "2026-07-18"
 
 _sha_m = _re.search(r"(?:^|[.+-])g(?P<sha>[0-9a-f]{7,40})(?:[.+-]|$)", __version__)
 _date_m = _re.search(r"(?:^|[.+-])d(?P<ymd>\d{8})(?:[.+-]|$)", __version__)
