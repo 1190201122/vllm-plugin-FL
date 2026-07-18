@@ -69,11 +69,14 @@ bash tests/custom_ops_tests/build_and_run.sh
 
 1. 检查 `ASCEND_HOME_PATH` / `ASCEND_TOOLKIT_HOME` 是否已设置；
 2. 检测 CANN 版本，要求 **CANN 9.0.0 及以上**，否则终止并提示安装；
-3. 检查并初始化 `catlass`、`pto-isa` 子模块；
-4. 编译/安装 Python 包与 torch extension；
-5. （可选）编译并安装 CANN framework 算子包；
-6. 检查 CANN framework 算子包是否已安装；
-7. 依次运行 `tests/custom_ops_tests/test_*.py`。
+3. 询问是否配置 GitHub / pip 镜像（分别对应 `ghfast.top` 和清华源）；
+4. 检查并初始化 `catlass`、`pto-isa` 子模块；
+5. 编译/安装 Python 包与 torch extension；
+6. （可选）编译并安装 CANN framework 算子包；
+7. 检查 CANN framework 算子包是否已安装；
+8. source `set_env.bash` 并设置 `ASCEND_CUSTOM_OPP_PATH` / `LD_LIBRARY_PATH`；
+9. 检查 `FlagGems`，如果没有则从 `https://github.com/flagos-ai/FlagGems` clone 并以 editable 模式安装；
+10. 依次运行 `tests/custom_ops_tests/test_*.py`。
 
 ### 常用选项
 
@@ -97,7 +100,7 @@ bash tests/custom_ops_tests/build_and_run.sh --build-ops
 bash tests/custom_ops_tests/build_and_run.sh --build-ops --soc ascend910_93 --editable
 ```
 
-> **注意**：脚本不会替你安装 CANN toolkit。如果第 6 步报错且你没有加 `--build-ops`，请先安装 CANN framework 算子包（见第 5 节），或者重新运行脚本并加上 `--build-ops`。
+> **注意**：脚本不会替你安装 CANN toolkit。如果第 7 步报错且你没有加 `--build-ops`，请先安装 CANN framework 算子包（见第 5 节），或者重新运行脚本并加上 `--build-ops`。
 
 ## 4. 编译并安装 torch extension `vllm_fl._C_ascend`
 

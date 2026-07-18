@@ -151,7 +151,32 @@ check_cann() {
 }
 
 # -----------------------------------------------------------------------------
-# 2. Submodule check
+# 2. Optional environment configuration
+# -----------------------------------------------------------------------------
+ask_yes_no() {
+    local prompt="$1"
+    local response
+    read -rp "$prompt [y/N]: " response
+    case "$response" in
+        [Yy]*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+configure_git_mirror() {
+    log_step "Configuring git mirror ..."
+    git config --global url."https://ghfast.top/https://github.com/".insteadOf "https://github.com/"
+    log_info "Git mirror configured."
+}
+
+configure_pip_mirror() {
+    log_step "Configuring pip mirror ..."
+    pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+    log_info "Pip mirror configured."
+}
+
+# -----------------------------------------------------------------------------
+# 3. Submodule check
 # -----------------------------------------------------------------------------
 check_submodules() {
     log_step "Checking source submodules ..."
@@ -174,7 +199,7 @@ check_submodules() {
 }
 
 # -----------------------------------------------------------------------------
-# 3. Build/install the Python package
+# 4. Build/install the Python package
 # -----------------------------------------------------------------------------
 build_extension() {
     log_step "Building vllm_fl._C_ascend torch extension ..."
@@ -211,7 +236,7 @@ install_editable() {
 }
 
 # -----------------------------------------------------------------------------
-# 4. Build/install CANN framework operators (optional)
+# 5. Build/install CANN framework operators (optional)
 # -----------------------------------------------------------------------------
 build_ops() {
     log_step "Building and installing CANN framework operators ..."
@@ -235,7 +260,7 @@ build_ops() {
 }
 
 # -----------------------------------------------------------------------------
-# 5. Check CANN framework operator package
+# 6. Check CANN framework operator package
 # -----------------------------------------------------------------------------
 check_cann_framework_ops() {
     log_step "Checking CANN framework operator package ..."
@@ -257,7 +282,61 @@ check_cann_framework_ops() {
 }
 
 # -----------------------------------------------------------------------------
-# 6. Run tests
+# 7. Set up CANN custom-op runtime environment
+# -----------------------------------------------------------------------------
+setup_cann_op_env() {
+    log_step "Setting up CANN custom-op runtime environment ..."
+
+    local vendor_dir="${ROOT_DIR}/vllm_fl/_cann_ops_custom/vendors/custom_transformer"
+    local set_env_script="${vendor_dir}/bin/set_env.bash"
+
+    if [[ -f "$set_env_script" ]]; then
+        log_info "Sourcing ${set_env_script} ..."
+        # shellcheck source=/dev/null
+        source "$set_env_script"
+    fi
+
+    # Always override the two path variables with the actual install location,
+    # in case the package has been relocated since installation.
+    export ASCEND_CUSTOM_OPP_PATH="$vendor_dir"
+    export LD_LIBRARY_PATH="${vendor_dir}/op_api/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+    log_info "ASCEND_CUSTOM_OPP_PATH=$ASCEND_CUSTOM_OPP_PATH"
+}
+
+# -----------------------------------------------------------------------------
+# 8. Check / install FlagGems
+# -----------------------------------------------------------------------------
+check_flag_gems() {
+    log_step "Checking FlagGems ..."
+
+    if python -c "import flag_gems" >/dev/null 2>&1; then
+        log_info "FlagGems is already installed."
+        return 0
+    fi
+
+    log_warn "FlagGems not found. Installing from source ..."
+
+    local parent_dir
+    parent_dir=$(dirname "$ROOT_DIR")
+    cd "$parent_dir"
+
+    if [[ ! -d "FlagGems" ]]; then
+        log_info "Cloning FlagGems ..."
+        git clone https://github.com/flagos-ai/FlagGems
+    else
+        log_info "FlagGems directory already exists, skipping clone."
+    fi
+
+    cd FlagGems
+    pip install --no-build-isolation -e .
+    log_info "FlagGems installed."
+
+    cd "$ROOT_DIR"
+}
+
+# -----------------------------------------------------------------------------
+# 9. Run tests
 # -----------------------------------------------------------------------------
 run_tests() {
     log_step "Running custom ops tests ..."
@@ -295,6 +374,14 @@ run_tests() {
 main() {
     log_info "Working directory: $ROOT_DIR"
     check_cann
+
+    if ask_yes_no "Configure git mirror for GitHub (ghfast.top)?"; then
+        configure_git_mirror
+    fi
+    if ask_yes_no "Configure pip mirror (Tsinghua)?"; then
+        configure_pip_mirror
+    fi
+
     check_submodules
     if [[ "$EDITABLE" -eq 1 ]]; then
         install_editable
@@ -305,6 +392,8 @@ main() {
         build_ops
     fi
     check_cann_framework_ops
+    setup_cann_op_env
+    check_flag_gems
     run_tests
     log_info "Done."
 }
