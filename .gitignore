@@ -224,6 +224,14 @@ vllm_fl/ops/pto_chunk_gdn/kernels/compiled_lib/*.so
 csrc/ascend/build/
 csrc/ascend/build_out/
 
+# Exception: these are source patches, not build artifacts.
+# The parent directories must also be un-ignored because the generic
+# 'build/' rule above ignores every directory named 'build'.
+!csrc/ascend/cmake/third_party/build/
+!csrc/ascend/cmake/third_party/build/modules/
+!csrc/ascend/cmake/third_party/build/modules/patch/
+!csrc/ascend/cmake/third_party/build/modules/patch/**
+
 # CANN framework operator downloaded third-party libraries.
 # Keep only the catlass and pto-isa source submodules.
 csrc/ascend/third_party/abseil-cpp/
