@@ -290,14 +290,18 @@ setup_cann_op_env() {
     local vendor_dir="${ROOT_DIR}/vllm_fl/_cann_ops_custom/vendors/custom_transformer"
     local set_env_script="${vendor_dir}/bin/set_env.bash"
 
+    # set_env.bash references these variables. Pre-define them (empty if not
+    # already set) so sourcing works even under 'set -u'.
+    export ASCEND_CUSTOM_OPP_PATH="${ASCEND_CUSTOM_OPP_PATH:-}"
+    export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
+
     if [[ -f "$set_env_script" ]]; then
         log_info "Sourcing ${set_env_script} ..."
-        # shellcheck source=/dev/null
         source "$set_env_script"
     fi
 
-    # Always override the two path variables with the actual install location,
-    # in case the package has been relocated since installation.
+    # Override with the actual install location in case the package has been
+    # relocated since installation.
     export ASCEND_CUSTOM_OPP_PATH="$vendor_dir"
     export LD_LIBRARY_PATH="${vendor_dir}/op_api/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
